@@ -1,11 +1,10 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/db');
+const mongoose = require('mongoose');
 
-const TeacherProfile = sequelize.define('TeacherProfile', {
-  id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-  employee_id: { type: DataTypes.STRING(50), allowNull: false, unique: true },
-  department: { type: DataTypes.STRING(100), defaultValue: '' },
-  status: { type: DataTypes.ENUM('Active', 'Inactive'), defaultValue: 'Active' },
-}, { tableName: 'teacher_profiles' });
+const teacherProfileSchema = new mongoose.Schema({
+  userId:      { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
+  employee_id: { type: String, required: true, unique: true },
+  department:  { type: String, default: '' },
+  status:      { type: String, enum: ['Active', 'Inactive'], default: 'Active' },
+}, { timestamps: true });
 
-module.exports = TeacherProfile;
+module.exports = mongoose.model('TeacherProfile', teacherProfileSchema);

@@ -1,56 +1,55 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/db');
+const mongoose = require('mongoose');
 
-const AttendanceSession = sequelize.define('AttendanceSession', {
-  id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-  session_id: { type: DataTypes.STRING(50), allowNull: false, unique: true },
-  section: { type: DataTypes.STRING(20), defaultValue: 'A' },
-  started_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
-  finished_at: { type: DataTypes.DATE, allowNull: true },
-  status: {
-    type: DataTypes.ENUM('Active', 'Paused', 'Finished'),
-    defaultValue: 'Active',
-  },
-  late_threshold_minutes: { type: DataTypes.INTEGER, defaultValue: 15 },
-  total_students: { type: DataTypes.INTEGER, defaultValue: 0 },
-}, { tableName: 'attendance_sessions' });
+const attendanceSessionSchema = new mongoose.Schema({
+  session_id:            { type: String, required: true, unique: true },
+  teacherId:             { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  subjectId:             { type: mongoose.Schema.Types.ObjectId, ref: 'Subject', default: null },
+  courseId:              { type: mongoose.Schema.Types.ObjectId, ref: 'Course', default: null },
+  classroomId:           { type: mongoose.Schema.Types.ObjectId, ref: 'Classroom', default: null },
+  semesterId:            { type: mongoose.Schema.Types.ObjectId, ref: 'Semester', default: null },
+  deviceId:              { type: mongoose.Schema.Types.ObjectId, ref: 'Device', default: null },
+  section:               { type: String, default: 'A' },
+  started_at:            { type: Date, default: Date.now },
+  finished_at:           { type: Date, default: null },
+  status:                { type: String, enum: ['Active', 'Paused', 'Finished'], default: 'Active' },
+  late_threshold_minutes:{ type: Number, default: 15 },
+  total_students:        { type: Number, default: 0 },
+  lat:                   { type: Number, default: null },
+  lng:                   { type: Number, default: null },
+}, { timestamps: true });
 
-const AttendanceRecord = sequelize.define('AttendanceRecord', {
-  id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-  time: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
-  status: {
-    type: DataTypes.ENUM('Present', 'Late', 'Absent'),
-    defaultValue: 'Present',
-  },
-  verification_method: {
-    type: DataTypes.ENUM('Fingerprint', 'RFID', 'Manual', 'QR'),
-    defaultValue: 'Fingerprint',
-  },
-  duplicate_scan_count: { type: DataTypes.INTEGER, defaultValue: 0 },
-  notes: { type: DataTypes.TEXT, allowNull: true },
-}, { tableName: 'attendance_records' });
+const attendanceRecordSchema = new mongoose.Schema({
+  sessionId:          { type: mongoose.Schema.Types.ObjectId, ref: 'AttendanceSession', required: true },
+  studentId:          { type: mongoose.Schema.Types.ObjectId, ref: 'StudentProfile', required: true },
+  time:               { type: Date, default: Date.now },
+  status:             { type: String, enum: ['Present', 'Late', 'Absent'], default: 'Present' },
+  verification_method:{ type: String, enum: ['Fingerprint', 'RFID', 'Manual', 'QR'], default: 'Fingerprint' },
+  duplicate_scan_count:{ type: Number, default: 0 },
+  notes:              { type: String, default: null },
+}, { timestamps: true });
 
-const Notification = sequelize.define('Notification', {
-  id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-  title: { type: DataTypes.STRING(200), allowNull: false },
-  message: { type: DataTypes.TEXT, allowNull: false },
-  type: {
-    type: DataTypes.ENUM('Info', 'Warning', 'Success', 'Error'),
-    defaultValue: 'Info',
-  },
-  is_read: { type: DataTypes.BOOLEAN, defaultValue: false },
-}, { tableName: 'notifications' });
+const notificationSchema = new mongoose.Schema({
+  recipientId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  title:       { type: String, required: true },
+  message:     { type: String, required: true },
+  type:        { type: String, enum: ['Info', 'Warning', 'Success', 'Error'], default: 'Info' },
+  is_read:     { type: Boolean, default: false },
+}, { timestamps: true });
 
-const SystemSettings = sequelize.define('SystemSettings', {
-  id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-  university_name: { type: DataTypes.STRING(200), defaultValue: 'Smart University' },
-  university_logo: { type: DataTypes.STRING(500), allowNull: true },
-  primary_color: { type: DataTypes.STRING(20), defaultValue: '#4F46E5' },
-  dark_mode: { type: DataTypes.BOOLEAN, defaultValue: false },
-  language: { type: DataTypes.STRING(10), defaultValue: 'en' },
-  timezone: { type: DataTypes.STRING(50), defaultValue: 'Africa/Nairobi' },
-  late_threshold_minutes: { type: DataTypes.INTEGER, defaultValue: 15 },
-  allow_manual_entry: { type: DataTypes.BOOLEAN, defaultValue: true },
-}, { tableName: 'system_settings' });
+const systemSettingsSchema = new mongoose.Schema({
+  university_name:       { type: String, default: 'Smart University' },
+  university_logo:       { type: String, default: null },
+  primary_color:         { type: String, default: '#4F46E5' },
+  dark_mode:             { type: Boolean, default: false },
+  language:              { type: String, default: 'en' },
+  timezone:              { type: String, default: 'Africa/Nairobi' },
+  late_threshold_minutes:{ type: Number, default: 15 },
+  allow_manual_entry:    { type: Boolean, default: true },
+}, { timestamps: true });
+
+const AttendanceSession = mongoose.model('AttendanceSession', attendanceSessionSchema);
+const AttendanceRecord  = mongoose.model('AttendanceRecord', attendanceRecordSchema);
+const Notification      = mongoose.model('Notification', notificationSchema);
+const SystemSettings    = mongoose.model('SystemSettings', systemSettingsSchema);
 
 module.exports = { AttendanceSession, AttendanceRecord, Notification, SystemSettings };

@@ -1,28 +1,14 @@
-const { Sequelize } = require('sequelize');
+const mongoose = require('mongoose');
 require('dotenv').config();
 
-let sequelize;
+const connectDB = async () => {
+  try {
+    await mongoose.connect(process.env.MONGODB_URI);
+    console.log('✅ MongoDB Atlas connected successfully');
+  } catch (err) {
+    console.error('❌ MongoDB connection failed:', err.message);
+    process.exit(1);
+  }
+};
 
-if (process.env.DB_DIALECT === 'mysql') {
-  sequelize = new Sequelize(
-    process.env.DB_NAME,
-    process.env.DB_USER,
-    process.env.DB_PASSWORD,
-    {
-      host: process.env.DB_HOST || 'localhost',
-      port: process.env.DB_PORT || 3306,
-      dialect: 'mysql',
-      logging: false,
-      pool: { max: 10, min: 0, acquire: 30000, idle: 10000 },
-    }
-  );
-} else {
-  // Default: SQLite for instant zero-config dev
-  sequelize = new Sequelize({
-    dialect: 'sqlite',
-    storage: process.env.SQLITE_PATH || './attendance.sqlite',
-    logging: false,
-  });
-}
-
-module.exports = sequelize;
+module.exports = connectDB;

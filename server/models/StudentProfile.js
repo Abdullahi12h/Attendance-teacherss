@@ -1,19 +1,18 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/db');
+const mongoose = require('mongoose');
 
-const StudentProfile = sequelize.define('StudentProfile', {
-  id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-  student_id: { type: DataTypes.STRING(50), allowNull: false, unique: true },
-  gender: { type: DataTypes.ENUM('Male', 'Female'), defaultValue: 'Male' },
-  department: { type: DataTypes.STRING(100), defaultValue: '' },
-  program: { type: DataTypes.STRING(100), defaultValue: '' },
-  semester: { type: DataTypes.STRING(50), defaultValue: '' },
-  academic_year: { type: DataTypes.STRING(50), defaultValue: '' },
-  guardian: { type: DataTypes.STRING(100), allowNull: true },
-  fingerprint_id: { type: DataTypes.STRING(50), allowNull: true, unique: true },
-  rfid: { type: DataTypes.STRING(50), allowNull: true },
-  qr_code: { type: DataTypes.STRING(100), allowNull: true },
-  status: { type: DataTypes.ENUM('Active', 'Inactive'), defaultValue: 'Active' },
-}, { tableName: 'student_profiles' });
+const studentProfileSchema = new mongoose.Schema({
+  userId:       { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
+  student_id:   { type: String, required: true, unique: true },
+  gender:       { type: String, enum: ['Male', 'Female'], default: 'Male' },
+  department:   { type: String, default: '' },
+  program:      { type: String, default: '' },
+  semester:     { type: String, default: '' },
+  academic_year:{ type: String, default: '' },
+  guardian:     { type: String, default: null },
+  fingerprint_id:{ type: String, default: null, unique: true, sparse: true },
+  rfid:         { type: String, default: null },
+  qr_code:      { type: String, default: null },
+  status:       { type: String, enum: ['Active', 'Inactive'], default: 'Active' },
+}, { timestamps: true });
 
-module.exports = StudentProfile;
+module.exports = mongoose.model('StudentProfile', studentProfileSchema);

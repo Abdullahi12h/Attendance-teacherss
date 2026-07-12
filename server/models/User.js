@@ -1,44 +1,42 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/db');
+const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
-const User = sequelize.define('User', {
-  id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-  username: { type: DataTypes.STRING(50), allowNull: false, unique: true },
-  email: { type: DataTypes.STRING(150), allowNull: false, unique: true },
-  password: { type: DataTypes.STRING(255), allowNull: false },
-  first_name: { type: DataTypes.STRING(80), defaultValue: '' },
-  last_name: { type: DataTypes.STRING(80), defaultValue: '' },
-  role: {
-    type: DataTypes.ENUM('admin', 'teacher', 'student'),
-    defaultValue: 'student',
-  },
-  photo: {
-    type: DataTypes.STRING(500),
-    defaultValue: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-  },
-  phone: { type: DataTypes.STRING(20), allowNull: true },
-  is_active: { type: DataTypes.BOOLEAN, defaultValue: true },
-}, {
-  tableName: 'users',
-  hooks: {
-    beforeCreate: async (user) => {
-      if (user.password) user.password = await bcrypt.hash(user.password, 12);
-    },
-    beforeUpdate: async (user) => {
-      if (user.changed('password')) user.password = await bcrypt.hash(user.password, 12);
-    },
-  },
+const userSchema = new mongoose.Schema({
+  username:   { type: String, required: true, unique: true, trim: true },
+  email:      { type: String, required: true, unique: true, trim: true, lowercase: true },
+  password:   { type: String, required: true },
+  first_name: { type: String, default: '' },
+  last_name:  { type: String, default: '' },
+  role:       { type: String, enum: ['admin', 'teacher', 'student'], default: 'student' },
+  photo:      { type: String, default: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150' },
+  phone:      { type: String, default: null },
+  is_active:  { type: Boolean, default: true },
+}, { timestamps: true });
+
+// Hash password before save
+userSchema.pre('save', async function (next) {
+  if (!this.isModified('password')) return next();
+  this.password = await bcrypt.hash(this.password, 12);
+  next();
 });
 
-User.prototype.validatePassword = async function (password) {
+// Hash on findOneAndUpdate
+userSchema.pre('findOneAndUpdate', async function (next) {
+  const update = this.getUpdate();
+  if (update && update.password) {
+    update.password = await bcrypt.hash(update.password, 12);
+  }
+  next();
+});
+
+userSchema.methods.validatePassword = function (password) {
   return bcrypt.compare(password, this.password);
 };
 
-User.prototype.toJSON = function () {
-  const values = { ...this.get() };
-  delete values.password;
-  return values;
+userSchema.methods.toJSON = function () {
+  const obj = this.toObject();
+  delete obj.password;
+  return obj;
 };
 
-module.exports = User;
+module.exports = mongoose.model('User', userSchema);

@@ -1,18 +1,13 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/db');
+const mongoose = require('mongoose');
 
-const Device = sequelize.define('Device', {
-  id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-  name: { type: DataTypes.STRING(100), allowNull: false },
-  device_id: { type: DataTypes.STRING(100), allowNull: false, unique: true },
-  ip: { type: DataTypes.STRING(45), allowNull: false },
-  battery: { type: DataTypes.INTEGER, defaultValue: 100 },
-  wifi: { type: DataTypes.STRING(50), defaultValue: 'Excellent' },
-  status: {
-    type: DataTypes.ENUM('Connected', 'Battery Alert', 'Offline'),
-    defaultValue: 'Connected',
-  },
-  last_sync: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
-}, { tableName: 'devices' });
+const deviceSchema = new mongoose.Schema({
+  name:      { type: String, required: true },
+  device_id: { type: String, required: true, unique: true },
+  ip:        { type: String, required: true },
+  battery:   { type: Number, default: 100 },
+  wifi:      { type: String, default: 'Excellent' },
+  status:    { type: String, enum: ['Connected', 'Battery Alert', 'Offline'], default: 'Connected' },
+  last_sync: { type: Date, default: Date.now },
+}, { timestamps: true });
 
-module.exports = Device;
+module.exports = mongoose.model('Device', deviceSchema);

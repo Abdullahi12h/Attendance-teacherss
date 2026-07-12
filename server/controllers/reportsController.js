@@ -1,5 +1,4 @@
-const { User, StudentProfile, TeacherProfile, AttendanceSession, AttendanceRecord, Notification, SystemSettings } = require('../models');
-const { Op, fn, col, literal } = require('sequelize');
+const { User, StudentProfile, TeacherProfile, AttendanceSession, AttendanceRecord, SystemSettings } = require('../models');
 
 // GET /api/reports/dashboard
 const getDashboardStats = async (req, res) => {
@@ -8,20 +7,22 @@ const getDashboardStats = async (req, res) => {
     today.setHours(0, 0, 0, 0);
 
     const [totalStudents, totalTeachers, activeSessions, todayRecords, settings] = await Promise.all([
-      StudentProfile.count({ where: { status: 'Active' } }),
-      TeacherProfile.count({ where: { status: 'Active' } }),
-      AttendanceSession.count({ where: { status: 'Active' } }),
-      AttendanceRecord.findAll({
-        where: { time: { [Op.gte]: today } },
-        attributes: ['status', [fn('COUNT', col('id')), 'count']],
-        group: ['status'],
-        raw: true,
-      }),
+      StudentProfile.countDocuments({ status: 'Active' }),
+      TeacherProfile.countDocuments({ status: 'Active' }),
+      AttendanceSession.countDocuments({ status: 'Active' }),
+      AttendanceRecord.aggregate([
+        { $match: { time: { $gte: today } } },
+        { $group: { _id: "$status", count: { $sum: 1 } } }
+      ]),
       SystemSettings.findOne(),
     ]);
 
     const todayStats = { Present: 0, Late: 0, Absent: 0 };
-    todayRecords.forEach(r => { todayStats[r.status] = parseInt(r.count); });
+    todayRecords.forEach(r => {
+      if (r._id) {
+        todayStats[r._id] = r.count;
+      }
+    });
 
     res.json({
       totalStudents,
@@ -38,7 +39,7 @@ const getDashboardStats = async (req, res) => {
   } catch (err) { res.status(500).json({ message: err.message }); }
 };
 
-// GET /api/reports/attendance?period=week|month|semester&subjectId=&sessionId=
+// GET /api/reports/attendance?period=week|month|semester&subjectId=&sessionId=&from=&to=
 const getAttendanceReport = async (req, res) => {
   try {
     const { period, subjectId, sessionId, from, to } = req.query;
@@ -49,32 +50,53 @@ const getAttendanceReport = async (req, res) => {
     else if (period === 'semester') startDate.setMonth(startDate.getMonth() - 6);
     else if (from) startDate = new Date(from);
 
-    const sessionWhere = {};
-    if (subjectId) sessionWhere.subjectId = subjectId;
-    if (sessionId) sessionWhere.id = sessionId;
+    const recordQuery = {
+      time: { $gte: startDate }
+    };
+    if (to) {
+      recordQuery.time.$lte = new Date(to);
+    }
 
-    const records = await AttendanceRecord.findAll({
-      where: {
-        time: { [Op.gte]: startDate, ...(to ? { [Op.lte]: new Date(to) } : {}) },
-      },
-      include: [
-        {
-          model: AttendanceSession, as: 'session',
-          where: sessionWhere,
-        },
-        {
-          model: StudentProfile, as: 'student',
-          include: [{ model: User, as: 'user', attributes: ['first_name', 'last_name'] }],
-        },
-      ],
-      order: [['time', 'DESC']],
+    if (sessionId) {
+      recordQuery.sessionId = sessionId;
+    } else if (subjectId) {
+      const sessions = await AttendanceSession.find({ subjectId });
+      const sessionIds = sessions.map(s => s._id);
+      recordQuery.sessionId = { $in: sessionIds };
+    }
+
+    const records = await AttendanceRecord.find(recordQuery)
+      .populate({
+        path: 'sessionId',
+        populate: [
+          { path: 'subjectId' },
+          { path: 'courseId' },
+          { path: 'classroomId' },
+          { path: 'semesterId' },
+          { path: 'deviceId' }
+        ]
+      })
+      .populate({
+        path: 'studentId',
+        populate: { path: 'userId', select: 'first_name last_name photo' }
+      })
+      .sort({ time: -1 });
+
+    // Map to Sequelize structure so frontend doesn't break
+    const formattedRecords = records.map(r => {
+      const obj = r.toObject();
+      obj.session = obj.sessionId;
+      obj.student = obj.studentId;
+      delete obj.sessionId;
+      delete obj.studentId;
+      return obj;
     });
 
     // Summary stats
     const summary = { Present: 0, Late: 0, Absent: 0 };
-    records.forEach(r => { summary[r.status] = (summary[r.status] || 0) + 1; });
+    formattedRecords.forEach(r => { summary[r.status] = (summary[r.status] || 0) + 1; });
 
-    res.json({ records, summary, total: records.length });
+    res.json({ records: formattedRecords, summary, total: formattedRecords.length });
   } catch (err) { res.status(500).json({ message: err.message }); }
 };
 
@@ -92,7 +114,8 @@ const updateSettings = async (req, res) => {
   try {
     let settings = await SystemSettings.findOne();
     if (!settings) settings = await SystemSettings.create({});
-    await settings.update(req.body);
+    Object.assign(settings, req.body);
+    await settings.save();
     res.json(settings);
   } catch (err) { res.status(500).json({ message: err.message }); }
 };

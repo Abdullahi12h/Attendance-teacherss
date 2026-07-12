@@ -5,7 +5,7 @@ const cors = require('cors');
 const morgan = require('morgan');
 require('dotenv').config();
 
-const { sequelize } = require('./models');
+// MongoDB connection configured below
 const setupSocket = require('./socket');
 
 const app = express();
@@ -79,15 +79,14 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: err.message || 'Internal Server Error' });
 });
 
-// Database Sync and Start Server
+// Database Connection and Start Server
+const connectDB = require('./config/db');
 const PORT = process.env.PORT || 8000;
-sequelize.sync({ force: false })
-  .then(() => {
-    console.log('[DB] Database synced successfully.');
-    server.listen(PORT, () => {
-      console.log(`[Server] running on port ${PORT}`);
-    });
-  })
-  .catch((err) => {
-    console.error('[DB] Database sync failed:', err);
+
+connectDB().then(() => {
+  server.listen(PORT, () => {
+    console.log(`[Server] running on port ${PORT}`);
   });
+}).catch((err) => {
+  console.error('[Server] Database connection failed:', err);
+});

@@ -3,7 +3,7 @@ const { Department, Program, Course, Subject, Classroom, Semester } = require('.
 // ── Departments ───────────────────────────────────────────────────────────────
 const getDepartments = async (req, res) => {
   try {
-    const items = await Department.findAll({ include: [{ model: Program, as: 'programs' }], order: [['name', 'ASC']] });
+    const items = await Department.find().sort({ name: 1 });
     res.json(items);
   } catch (err) { res.status(500).json({ message: err.message }); }
 };
@@ -13,15 +13,14 @@ const createDepartment = async (req, res) => {
 };
 const updateDepartment = async (req, res) => {
   try {
-    const item = await Department.findByPk(req.params.id);
+    const item = await Department.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!item) return res.status(404).json({ message: 'Not found.' });
-    await item.update(req.body);
     res.json(item);
   } catch (err) { res.status(500).json({ message: err.message }); }
 };
 const deleteDepartment = async (req, res) => {
   try {
-    await Department.destroy({ where: { id: req.params.id } });
+    await Department.findByIdAndDelete(req.params.id);
     res.json({ message: 'Deleted.' });
   } catch (err) { res.status(500).json({ message: err.message }); }
 };
@@ -29,7 +28,7 @@ const deleteDepartment = async (req, res) => {
 // ── Programs ──────────────────────────────────────────────────────────────────
 const getPrograms = async (req, res) => {
   try {
-    const items = await Program.findAll({ include: [{ model: Department, as: 'department' }], order: [['name', 'ASC']] });
+    const items = await Program.find().populate('departmentId').sort({ name: 1 });
     res.json(items);
   } catch (err) { res.status(500).json({ message: err.message }); }
 };
@@ -39,20 +38,20 @@ const createProgram = async (req, res) => {
 };
 const updateProgram = async (req, res) => {
   try {
-    const item = await Program.findByPk(req.params.id);
+    const item = await Program.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!item) return res.status(404).json({ message: 'Not found.' });
-    await item.update(req.body); res.json(item);
+    res.json(item);
   } catch (err) { res.status(500).json({ message: err.message }); }
 };
 const deleteProgram = async (req, res) => {
-  try { await Program.destroy({ where: { id: req.params.id } }); res.json({ message: 'Deleted.' }); }
+  try { await Program.findByIdAndDelete(req.params.id); res.json({ message: 'Deleted.' }); }
   catch (err) { res.status(500).json({ message: err.message }); }
 };
 
 // ── Courses ───────────────────────────────────────────────────────────────────
 const getCourses = async (req, res) => {
   try {
-    const items = await Course.findAll({ include: [{ model: Program, as: 'program' }], order: [['name', 'ASC']] });
+    const items = await Course.find().populate('programId').sort({ name: 1 });
     res.json(items);
   } catch (err) { res.status(500).json({ message: err.message }); }
 };
@@ -62,20 +61,20 @@ const createCourse = async (req, res) => {
 };
 const updateCourse = async (req, res) => {
   try {
-    const item = await Course.findByPk(req.params.id);
+    const item = await Course.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!item) return res.status(404).json({ message: 'Not found.' });
-    await item.update(req.body); res.json(item);
+    res.json(item);
   } catch (err) { res.status(500).json({ message: err.message }); }
 };
 const deleteCourse = async (req, res) => {
-  try { await Course.destroy({ where: { id: req.params.id } }); res.json({ message: 'Deleted.' }); }
+  try { await Course.findByIdAndDelete(req.params.id); res.json({ message: 'Deleted.' }); }
   catch (err) { res.status(500).json({ message: err.message }); }
 };
 
 // ── Subjects ──────────────────────────────────────────────────────────────────
 const getSubjects = async (req, res) => {
   try {
-    const items = await Subject.findAll({ include: [{ model: Course, as: 'course' }], order: [['name', 'ASC']] });
+    const items = await Subject.find().populate('courseId').sort({ name: 1 });
     res.json(items);
   } catch (err) { res.status(500).json({ message: err.message }); }
 };
@@ -85,19 +84,19 @@ const createSubject = async (req, res) => {
 };
 const updateSubject = async (req, res) => {
   try {
-    const item = await Subject.findByPk(req.params.id);
+    const item = await Subject.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!item) return res.status(404).json({ message: 'Not found.' });
-    await item.update(req.body); res.json(item);
+    res.json(item);
   } catch (err) { res.status(500).json({ message: err.message }); }
 };
 const deleteSubject = async (req, res) => {
-  try { await Subject.destroy({ where: { id: req.params.id } }); res.json({ message: 'Deleted.' }); }
+  try { await Subject.findByIdAndDelete(req.params.id); res.json({ message: 'Deleted.' }); }
   catch (err) { res.status(500).json({ message: err.message }); }
 };
 
 // ── Classrooms ────────────────────────────────────────────────────────────────
 const getClassrooms = async (req, res) => {
-  try { res.json(await Classroom.findAll({ order: [['room_number', 'ASC']] })); }
+  try { res.json(await Classroom.find().sort({ room_number: 1 })); }
   catch (err) { res.status(500).json({ message: err.message }); }
 };
 const createClassroom = async (req, res) => {
@@ -106,19 +105,19 @@ const createClassroom = async (req, res) => {
 };
 const updateClassroom = async (req, res) => {
   try {
-    const item = await Classroom.findByPk(req.params.id);
+    const item = await Classroom.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!item) return res.status(404).json({ message: 'Not found.' });
-    await item.update(req.body); res.json(item);
+    res.json(item);
   } catch (err) { res.status(500).json({ message: err.message }); }
 };
 const deleteClassroom = async (req, res) => {
-  try { await Classroom.destroy({ where: { id: req.params.id } }); res.json({ message: 'Deleted.' }); }
+  try { await Classroom.findByIdAndDelete(req.params.id); res.json({ message: 'Deleted.' }); }
   catch (err) { res.status(500).json({ message: err.message }); }
 };
 
 // ── Semesters ─────────────────────────────────────────────────────────────────
 const getSemesters = async (req, res) => {
-  try { res.json(await Semester.findAll({ order: [['start_date', 'DESC']] })); }
+  try { res.json(await Semester.find().sort({ start_date: -1 })); }
   catch (err) { res.status(500).json({ message: err.message }); }
 };
 const createSemester = async (req, res) => {
@@ -127,13 +126,13 @@ const createSemester = async (req, res) => {
 };
 const updateSemester = async (req, res) => {
   try {
-    const item = await Semester.findByPk(req.params.id);
+    const item = await Semester.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!item) return res.status(404).json({ message: 'Not found.' });
-    await item.update(req.body); res.json(item);
+    res.json(item);
   } catch (err) { res.status(500).json({ message: err.message }); }
 };
 const deleteSemester = async (req, res) => {
-  try { await Semester.destroy({ where: { id: req.params.id } }); res.json({ message: 'Deleted.' }); }
+  try { await Semester.findByIdAndDelete(req.params.id); res.json({ message: 'Deleted.' }); }
   catch (err) { res.status(500).json({ message: err.message }); }
 };
 

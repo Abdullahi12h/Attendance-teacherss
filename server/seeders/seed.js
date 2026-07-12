@@ -1,5 +1,5 @@
+const mongoose = require('mongoose');
 const {
-  sequelize,
   User,
   StudentProfile,
   TeacherProfile,
@@ -14,11 +14,30 @@ const {
   RFIDCard
 } = require('../models');
 
+require('dotenv').config();
+
 const seed = async () => {
   try {
-    console.log('[Seed] Re-syncing database (force=true)...');
-    await sequelize.sync({ force: true });
-    console.log('[Seed] Database synced successfully.');
+    console.log('[Seed] Connecting to MongoDB Atlas...');
+    await mongoose.connect(process.env.MONGODB_URI);
+    console.log('[Seed] Connected successfully.');
+
+    console.log('[Seed] Clearing existing collections...');
+    await Promise.all([
+      SystemSettings.deleteMany({}),
+      User.deleteMany({}),
+      TeacherProfile.deleteMany({}),
+      StudentProfile.deleteMany({}),
+      RFIDCard.deleteMany({}),
+      Department.deleteMany({}),
+      Program.deleteMany({}),
+      Course.deleteMany({}),
+      Subject.deleteMany({}),
+      Classroom.deleteMany({}),
+      Semester.deleteMany({}),
+      Device.deleteMany({})
+    ]);
+    console.log('[Seed] Collections cleared.');
 
     // 1. Create System Settings
     console.log('[Seed] Seeding System Settings...');
@@ -91,14 +110,14 @@ const seed = async () => {
     // 3. Create Profiles
     console.log('[Seed] Seeding Profiles...');
     await TeacherProfile.create({
-      userId: teacherUser.id,
+      userId: teacherUser._id,
       employee_id: 'T-88021',
       department: 'Software Engineering',
       status: 'Active'
     });
 
     const sp1 = await StudentProfile.create({
-      userId: studentUser1.id,
+      userId: studentUser1._id,
       student_id: 'CS-2026-089',
       gender: 'Male',
       department: 'Computer Science',
@@ -112,7 +131,7 @@ const seed = async () => {
     });
 
     const sp2 = await StudentProfile.create({
-      userId: studentUser2.id,
+      userId: studentUser2._id,
       student_id: 'SE-2026-042',
       gender: 'Male',
       department: 'Software Engineering',
@@ -126,7 +145,7 @@ const seed = async () => {
     });
 
     const sp3 = await StudentProfile.create({
-      userId: studentUser3.id,
+      userId: studentUser3._id,
       student_id: 'CS-2026-015',
       gender: 'Female',
       department: 'Computer Science',
@@ -142,19 +161,19 @@ const seed = async () => {
     console.log('[Seed] Seeding RFID Cards...');
     await RFIDCard.create({
       uid: 'AB12CD34',
-      studentProfileId: sp1.id,
+      studentProfileId: sp1._id,
       status: 'Active'
     });
 
     await RFIDCard.create({
       uid: '55FF66EE',
-      studentProfileId: sp2.id,
+      studentProfileId: sp2._id,
       status: 'Active'
     });
 
     await RFIDCard.create({
       uid: '11223344',
-      studentProfileId: sp3.id,
+      studentProfileId: sp3._id,
       status: 'Active'
     });
 
@@ -178,42 +197,42 @@ const seed = async () => {
       code: 'BSSE',
       name: 'Software Engineering',
       duration: '4 Years',
-      departmentId: sweDept.id
+      departmentId: sweDept._id
     });
 
     const bscsProgram = await Program.create({
       code: 'BSCS',
       name: 'Computer Science & Engineering',
       duration: '4 Years',
-      departmentId: csDept.id
+      departmentId: csDept._id
     });
 
     const sweCourse = await Course.create({
       code: 'SWE-312',
       name: 'Software Architecture',
       credits: 3,
-      programId: bsseProgram.id
+      programId: bsseProgram._id
     });
 
     const csCourse = await Course.create({
       code: 'CS-402',
       name: 'Artificial Intelligence',
       credits: 3,
-      programId: bscsProgram.id
+      programId: bscsProgram._id
     });
 
     await Subject.create({
       code: 'SWE-312-T',
       name: 'SWE-312-T (Design Patterns)',
       hours: 3,
-      courseId: sweCourse.id
+      courseId: sweCourse._id
     });
 
     await Subject.create({
       code: 'CS-402-L',
       name: 'CS-402-L (AI Machine Learning Lab)',
       hours: 3,
-      courseId: csCourse.id
+      courseId: csCourse._id
     });
 
     const classroom1 = await Classroom.create({
@@ -232,15 +251,15 @@ const seed = async () => {
 
     const semester1 = await Semester.create({
       term: '6th Semester',
-      start_date: '2026-02-01',
-      end_date: '2026-07-31',
+      start_date: new Date('2026-02-01'),
+      end_date: new Date('2026-07-31'),
       status: 'Active'
     });
 
     const semester2 = await Semester.create({
       term: '8th Semester',
-      start_date: '2026-02-01',
-      end_date: '2026-07-31',
+      start_date: new Date('2026-02-01'),
+      end_date: new Date('2026-07-31'),
       status: 'Active'
     });
 
