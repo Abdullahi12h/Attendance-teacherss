@@ -14,19 +14,17 @@ const userSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Hash password before save
-userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();
+userSchema.pre('save', async function () {
+  if (!this.isModified('password')) return;
   this.password = await bcrypt.hash(this.password, 12);
-  next();
 });
 
 // Hash on findOneAndUpdate
-userSchema.pre('findOneAndUpdate', async function (next) {
+userSchema.pre('findOneAndUpdate', async function () {
   const update = this.getUpdate();
   if (update && update.password) {
     update.password = await bcrypt.hash(update.password, 12);
   }
-  next();
 });
 
 userSchema.methods.validatePassword = function (password) {
