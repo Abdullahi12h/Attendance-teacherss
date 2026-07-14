@@ -28,7 +28,7 @@ const deleteDepartment = async (req, res) => {
 // ── Programs ──────────────────────────────────────────────────────────────────
 const getPrograms = async (req, res) => {
   try {
-    const items = await Program.find().populate('departmentId').sort({ name: 1 });
+    const items = await Program.find().sort({ name: 1 });
     res.json(items);
   } catch (err) { res.status(500).json({ message: err.message }); }
 };
@@ -51,7 +51,7 @@ const deleteProgram = async (req, res) => {
 // ── Courses ───────────────────────────────────────────────────────────────────
 const getCourses = async (req, res) => {
   try {
-    const items = await Course.find().populate('programId').sort({ name: 1 });
+    const items = await Course.find().sort({ name: 1 });
     res.json(items);
   } catch (err) { res.status(500).json({ message: err.message }); }
 };
@@ -74,7 +74,7 @@ const deleteCourse = async (req, res) => {
 // ── Subjects ──────────────────────────────────────────────────────────────────
 const getSubjects = async (req, res) => {
   try {
-    const items = await Subject.find().populate('courseId').sort({ name: 1 });
+    const items = await Subject.find().sort({ name: 1 });
     res.json(items);
   } catch (err) { res.status(500).json({ message: err.message }); }
 };

@@ -10,12 +10,50 @@ import {
   Cpu, Power, QrCode, RefreshCw, ShieldCheck
 } from 'lucide-react';
 import apiClient from '../api/client';
+import { useAuth } from '../context/AuthContext';
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:8000';
+
+// Mock Data for Sandbox Mode
+const MOCK_DEPARTMENTS = [
+  { id: 'swe-dept-id', name: 'Software Engineering', code: 'SWE' },
+  { id: 'cs-dept-id', name: 'Computer Science', code: 'CS' }
+];
+
+const MOCK_PROGRAMS = [
+  { id: 'swe-prog-id', name: 'Software Engineering', departmentId: 'swe-dept-id' },
+  { id: 'cs-prog-id', name: 'Computer Science & Engineering', departmentId: 'cs-dept-id' }
+];
+
+const MOCK_COURSES = [
+  { id: 'swe-course-id', name: 'Software Architecture', programId: 'swe-prog-id' },
+  { id: 'cs-course-id', name: 'Artificial Intelligence', programId: 'cs-prog-id' }
+];
+
+const MOCK_SUBJECTS = [
+  { id: 'swe-sub-id', name: 'SWE-312-T (Design Patterns)', courseId: 'swe-course-id' },
+  { id: 'cs-sub-id', name: 'CS-402-L (AI Machine Learning Lab)', courseId: 'cs-course-id' }
+];
+
+const MOCK_CLASSROOMS = [
+  { id: 'room-1-id', room_number: 'Lecture Hall 04' },
+  { id: 'room-2-id', room_number: 'CS Lab 02' }
+];
+
+const MOCK_SEMESTERS = [
+  { id: 'sem-1-id', term: '6th Semester' },
+  { id: 'sem-2-id', term: '8th Semester' }
+];
+
+const MOCK_DEVICES = [
+  { id: 'dev-1-id', name: 'Lecture Hall ESP-01', status: 'Connected' },
+  { id: 'dev-2-id', name: 'CS Lab 2 Scanner', status: 'Connected' }
+];
 
 const AttendanceSession = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { isSandboxMode } = useAuth();
 
   // Pick up class data if navigated from Teacher Dashboard schedule
   const activeClassData = location.state?.activeClass;
@@ -73,6 +111,11 @@ const AttendanceSession = () => {
   // Fetch a fresh QR token from the backend
   const fetchQRToken = useCallback(async () => {
     if (!sessionActive) return;
+    if (isSandboxMode) {
+      setQrToken('MOCK_QR_TOKEN_SANDBOX_' + Math.floor(Math.random() * 10000));
+      setQrCountdown(30);
+      return;
+    }
     setQrLoading(true);
     try {
       const params = {};
@@ -100,6 +143,33 @@ const AttendanceSession = () => {
   // Fetch metadata on mount
   useEffect(() => {
     const fetchData = async () => {
+      if (isSandboxMode) {
+        setDepartmentsList(MOCK_DEPARTMENTS);
+        setProgramsList(MOCK_PROGRAMS);
+        setCoursesList(MOCK_COURSES);
+        setSubjectsList(MOCK_SUBJECTS);
+        setClassroomsList(MOCK_CLASSROOMS);
+        setSemestersList(MOCK_SEMESTERS);
+        setDevicesList(MOCK_DEVICES);
+
+        // Auto-select defaults
+        let deptId = MOCK_DEPARTMENTS[0].id;
+        let progId = MOCK_PROGRAMS[0].id;
+        let courseId = MOCK_COURSES[0].id;
+        let subId = MOCK_SUBJECTS[0].id;
+        let roomId = MOCK_CLASSROOMS[0].id;
+        let semId = MOCK_SEMESTERS[0].id;
+        let devId = MOCK_DEVICES[0].id;
+
+        setSelectedDepartmentId(deptId);
+        setSelectedProgramId(progId);
+        setSelectedCourseId(courseId);
+        setSelectedSubjectId(subId);
+        setSelectedClassroomId(roomId);
+        setSelectedSemesterId(semId);
+        setSelectedDeviceId(devId);
+        return;
+      }
       try {
         const [deptsRes, programsRes, coursesRes, subjectsRes, classroomsRes, semestersRes, devicesRes] = await Promise.all([
           apiClient.get('/academics/departments'),
@@ -180,15 +250,15 @@ const AttendanceSession = () => {
           // Set first items as defaults
           if (depts.length > 0) deptId = depts[0].id;
           
-          const relatedProgs = progs.filter(x => x.departmentId === deptId);
+          const relatedProgs = progs.filter(x => String(x.departmentId) === String(deptId));
           if (relatedProgs.length > 0) progId = relatedProgs[0].id;
           else if (progs.length > 0) progId = progs[0].id;
 
-          const relatedCourses = crs.filter(x => x.programId === progId);
+          const relatedCourses = crs.filter(x => String(x.programId) === String(progId));
           if (relatedCourses.length > 0) courseId = relatedCourses[0].id;
           else if (crs.length > 0) courseId = crs[0].id;
 
-          const relatedSubjects = subs.filter(x => x.courseId === courseId);
+          const relatedSubjects = subs.filter(x => String(x.courseId) === String(courseId));
           if (relatedSubjects.length > 0) subId = relatedSubjects[0].id;
           else if (subs.length > 0) subId = subs[0].id;
 
@@ -201,13 +271,13 @@ const AttendanceSession = () => {
         const dev = devs.find(x => x.device_id === matchingRoom?.device_uuid) || devs[0];
         if (dev) devId = dev.id;
 
-        setSelectedDepartmentId(deptId);
-        setSelectedProgramId(progId);
-        setSelectedCourseId(courseId);
-        setSelectedSubjectId(subId);
-        setSelectedClassroomId(roomId);
-        setSelectedSemesterId(semId);
-        setSelectedDeviceId(devId);
+        setSelectedDepartmentId(String(deptId));
+        setSelectedProgramId(String(progId));
+        setSelectedCourseId(String(courseId));
+        setSelectedSubjectId(String(subId));
+        setSelectedClassroomId(String(roomId));
+        setSelectedSemesterId(String(semId));
+        setSelectedDeviceId(String(devId));
 
       } catch (err) {
         console.error('Error fetching academic setup metadata:', err);
@@ -221,6 +291,7 @@ const AttendanceSession = () => {
   // Check active session on mount
   useEffect(() => {
     const checkActiveSession = async () => {
+      if (isSandboxMode) return;
       try {
         const res = await apiClient.get('/attendance/sessions?status=Active');
         if (res.data.sessions && res.data.sessions.length > 0) {
@@ -231,13 +302,13 @@ const AttendanceSession = () => {
           setSessionPaused(activeSession.status === 'Paused');
           
           // Pre-populate selections with the active session fields
-          setSelectedDepartmentId(activeSession.course?.program?.departmentId || '');
-          setSelectedProgramId(activeSession.course?.programId || '');
-          setSelectedCourseId(activeSession.courseId || '');
-          setSelectedSubjectId(activeSession.subjectId || '');
-          setSelectedClassroomId(activeSession.classroomId || '');
-          setSelectedSemesterId(activeSession.semesterId || '');
-          setSelectedDeviceId(activeSession.deviceId || '');
+          setSelectedDepartmentId(String(activeSession.course?.program?.departmentId || ''));
+          setSelectedProgramId(String(activeSession.course?.programId || ''));
+          setSelectedCourseId(String(activeSession.courseId || ''));
+          setSelectedSubjectId(String(activeSession.subjectId || ''));
+          setSelectedClassroomId(String(activeSession.classroomId || ''));
+          setSelectedSemesterId(String(activeSession.semesterId || ''));
+          setSelectedDeviceId(String(activeSession.deviceId || ''));
           setSection(activeSession.section || 'A');
 
           // Re-fetch records for this session
@@ -277,10 +348,10 @@ const AttendanceSession = () => {
   }, []);
 
   const handleDepartmentChange = (e) => {
-    const deptId = parseInt(e.target.value);
+    const deptId = e.target.value;
     setSelectedDepartmentId(deptId);
     // Find first program in that department
-    const relatedProgs = programsList.filter(p => p.departmentId === deptId);
+    const relatedProgs = programsList.filter(p => String(p.departmentId) === String(deptId));
     if (relatedProgs.length > 0) {
       const nextProgId = relatedProgs[0].id;
       setSelectedProgramId(nextProgId);
@@ -289,7 +360,7 @@ const AttendanceSession = () => {
   };
 
   const updateProgramCascade = (progId) => {
-    const relatedCourses = coursesList.filter(c => c.programId === progId);
+    const relatedCourses = coursesList.filter(c => String(c.programId) === String(progId));
     if (relatedCourses.length > 0) {
       const nextCourseId = relatedCourses[0].id;
       setSelectedCourseId(nextCourseId);
@@ -298,26 +369,26 @@ const AttendanceSession = () => {
   };
 
   const handleProgramChange = (e) => {
-    const progId = parseInt(e.target.value);
+    const progId = e.target.value;
     setSelectedProgramId(progId);
     updateProgramCascade(progId);
   };
 
   const updateCourseCascade = (courseId) => {
-    const relatedSubjects = subjectsList.filter(s => s.courseId === courseId);
+    const relatedSubjects = subjectsList.filter(s => String(s.courseId) === String(courseId));
     if (relatedSubjects.length > 0) {
       setSelectedSubjectId(relatedSubjects[0].id);
     }
   };
 
   const handleCourseChange = (e) => {
-    const courseId = parseInt(e.target.value);
+    const courseId = e.target.value;
     setSelectedCourseId(courseId);
     updateCourseCascade(courseId);
   };
 
   const handleClassroomChange = (e) => {
-    const roomId = parseInt(e.target.value);
+    const roomId = e.target.value;
     setSelectedClassroomId(roomId);
     
     // Auto-select device associated with the classroom
@@ -371,6 +442,10 @@ const AttendanceSession = () => {
   // --- SOCKET.IO REAL-TIME CONNECTION ---
   useEffect(() => {
     if (sessionActive) {
+      if (isSandboxMode) {
+        setLiveConnectionStatus('connected');
+        return;
+      }
       // Create socket connection
       const socket = io(SOCKET_URL, {
         transports: ['websocket', 'polling'],
@@ -462,6 +537,21 @@ const AttendanceSession = () => {
       return;
     }
 
+    if (isSandboxMode) {
+      setActiveSessionId('mock-session-id');
+      setActiveSessionUuid('mock-session-uuid-12345');
+      setSessionActive(true);
+      setSessionPaused(false);
+      setCheckedInStudents([]);
+      setSessionStats({ present: 0, late: 0, absent: 40 });
+      setQrToken('MOCK_QR_TOKEN_SANDBOX');
+      setTeacherCoords(null);
+
+      const courseName = coursesList.find(c => c.id === selectedCourseId)?.name || course;
+      toast.success(`Attendance session started for ${courseName} (Sandbox)`);
+      return;
+    }
+
     try {
       const payload = {
         subjectId: selectedSubjectId,
@@ -517,6 +607,14 @@ const AttendanceSession = () => {
   }, [sessionActive, teacherCoords]);
 
   const handlePauseSession = async () => {
+    if (isSandboxMode) {
+      const nextPaused = !sessionPaused;
+      setSessionPaused(nextPaused);
+      toast(nextPaused ? 'Session Paused (Sandbox)' : 'Session Resumed (Sandbox)', {
+        icon: nextPaused ? '⏸️' : '▶️',
+      });
+      return;
+    }
     try {
       const nextPaused = !sessionPaused;
       await apiClient.put(`/attendance/sessions/${activeSessionId}`, {
@@ -543,6 +641,13 @@ const AttendanceSession = () => {
       confirmButtonText: 'Yes, reset'
     }).then(async (result) => {
       if (result.isConfirmed) {
+        if (isSandboxMode) {
+          setCheckedInStudents([]);
+          setSessionStats({ present: 0, late: 0, absent: 40 });
+          setTeacherCoords(null);
+          toast.success('Session reset completed (Sandbox)');
+          return;
+        }
         try {
           await apiClient.delete(`/attendance/sessions/${activeSessionId}/records`);
           setCheckedInStudents([]);
@@ -569,6 +674,19 @@ const AttendanceSession = () => {
       confirmButtonText: 'Yes, submit logs'
     }).then(async (result) => {
       if (result.isConfirmed) {
+        if (isSandboxMode) {
+          setSessionActive(false);
+          setTeacherCoords(null);
+          Swal.fire({
+            title: 'Session Archived (Sandbox)',
+            html: `<b>Course:</b> ${courseName}<br/><b>Present:</b> ${sessionStats.present}<br/><b>Late:</b> ${sessionStats.late}<br/><b>Absent:</b> ${sessionStats.absent}`,
+            icon: 'success',
+            confirmButtonColor: '#4f46e5'
+          }).then(() => {
+            navigate('/');
+          });
+          return;
+        }
         try {
           await apiClient.put(`/attendance/sessions/${activeSessionId}`, {
             status: 'Finished'
@@ -599,6 +717,57 @@ const AttendanceSession = () => {
     }
     if (sessionPaused) {
       toast.error('Cannot simulate: Session is currently paused.', { id: 'sim-err' });
+      return;
+    }
+
+    if (isSandboxMode) {
+      const isLate = simLateArrival;
+      const status = isLate ? 'Late' : 'Present';
+      
+      const newStudent = {
+        id: `sim-${student.id || Date.now()}`,
+        studentId: student.studentId || '—',
+        name: student.name,
+        photo: student.photo,
+        department: student.department || '',
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        status: status,
+        verification: 'Fingerprint'
+      };
+
+      setCheckedInStudents(prev => {
+        const alreadyIn = prev.some(s => s.studentId === newStudent.studentId);
+        if (alreadyIn) {
+          toast.error(
+            <div className="flex flex-col">
+              <span className="font-bold text-xs">Verification Failed</span>
+              <span className="text-[10px] text-slate-500">Duplicate scan: {student.name} is already logged.</span>
+            </div>,
+            { id: `dup-${student.studentId}` }
+          );
+          
+          setScannedLogs(prevLogs => [
+            { time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }), name: student.name, fp: student.fingerprintId, status: 'Duplicate Scan Rejected', success: false },
+            ...prevLogs
+          ]);
+          return prev;
+        }
+
+        setSessionStats(prevStats => {
+          return {
+            present: isLate ? prevStats.present : prevStats.present + 1,
+            late: isLate ? prevStats.late + 1 : prevStats.late,
+            absent: Math.max(prevStats.absent - 1, 0)
+          };
+        });
+
+        setScannedLogs(prevLogs => [
+          { time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }), name: student.name, fp: student.fingerprintId, status: `Verified (${status})`, success: true },
+          ...prevLogs
+        ]);
+
+        return [newStudent, ...prev];
+      });
       return;
     }
 
@@ -677,7 +846,7 @@ const AttendanceSession = () => {
                     className="glass-input mt-1.5"
                   >
                     {programsList
-                      .filter(p => p.departmentId === selectedDepartmentId)
+                      .filter(p => String(p.departmentId) === String(selectedDepartmentId))
                       .map(p => (
                         <option key={p.id} value={p.id}>{p.name}</option>
                       ))}
@@ -691,7 +860,7 @@ const AttendanceSession = () => {
                     className="glass-input mt-1.5"
                   >
                     {coursesList
-                      .filter(c => c.programId === selectedProgramId)
+                      .filter(c => String(c.programId) === String(selectedProgramId))
                       .map(c => (
                         <option key={c.id} value={c.id}>{c.name}</option>
                       ))}
@@ -701,11 +870,11 @@ const AttendanceSession = () => {
                   <label className="block text-[10px] font-bold text-slate-400 uppercase">Subject</label>
                   <select 
                     value={selectedSubjectId} 
-                    onChange={e => setSelectedSubjectId(parseInt(e.target.value))} 
+                    onChange={e => setSelectedSubjectId(e.target.value)} 
                     className="glass-input mt-1.5"
                   >
                     {subjectsList
-                      .filter(s => s.courseId === selectedCourseId)
+                      .filter(s => String(s.courseId) === String(selectedCourseId))
                       .map(s => (
                         <option key={s.id} value={s.id}>{s.name}</option>
                       ))}
@@ -739,7 +908,7 @@ const AttendanceSession = () => {
                   <label className="block text-[10px] font-bold text-slate-400 uppercase">Term Semester</label>
                   <select 
                     value={selectedSemesterId} 
-                    onChange={e => setSelectedSemesterId(parseInt(e.target.value))} 
+                    onChange={e => setSelectedSemesterId(e.target.value)} 
                     className="glass-input mt-1.5"
                   >
                     {semestersList.map(s => (
@@ -751,7 +920,7 @@ const AttendanceSession = () => {
                   <label className="block text-[10px] font-bold text-slate-400 uppercase">Select Biometric Reader</label>
                   <select 
                     value={selectedDeviceId} 
-                    onChange={e => setSelectedDeviceId(parseInt(e.target.value))} 
+                    onChange={e => setSelectedDeviceId(e.target.value)} 
                     className="glass-input mt-1.5 font-semibold text-indigo-500"
                   >
                     {devicesList.map(d => (

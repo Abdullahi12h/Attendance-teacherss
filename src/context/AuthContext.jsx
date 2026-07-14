@@ -32,23 +32,36 @@ export const AuthProvider = ({ children }) => {
       const sandbox = localStorage.getItem('sandbox_mode') === 'true';
 
       if (storedToken && storedUser) {
+        // If token is a mock token, clear it and force re-login
+        if (storedToken.startsWith('mock_jwt')) {
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          localStorage.removeItem('user');
+          localStorage.removeItem('sandbox_mode');
+          setLoading(false);
+          return;
+        }
+
         setToken(storedToken);
         setUser(JSON.parse(storedUser));
         setIsSandboxMode(sandbox);
-        
+
         // If not sandbox, verify token with backend
         if (!sandbox) {
           try {
-            // Check session validity with backend
-            const response = await axios.get(`${API_URL}/auth/me/`);
+            const response = await axios.get(`${API_URL}/auth/me`);
             setUser(response.data);
             localStorage.setItem('user', JSON.stringify(response.data));
           } catch (error) {
             console.error('Token validation failed, logging out...', error);
-            // If backend fails but we have cached user, let's keep it or fallback
-            // In a strict prod app we logout, but for local testing let's auto-switch to sandbox
-            setIsSandboxMode(true);
-            localStorage.setItem('sandbox_mode', 'true');
+            // Clear stale auth and force re-login
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            localStorage.removeItem('user');
+            localStorage.removeItem('sandbox_mode');
+            setUser(null);
+            setToken(null);
+            setIsSandboxMode(false);
           }
         }
       }
